@@ -2,10 +2,12 @@
 #include "utils.h"
 #include "day01.c"
 #include "day02.c"
+#include "day03.c"
 
 int (*solutions[][2])(const char *) = {
     {day01_move_to_floor, day01_basement_position},
     {day02_wrapping_paper, day02_ribbon},
+    {day03_visit, day03_robo},
 };
 
 int main(int argc, char *argv[])
@@ -15,6 +17,7 @@ int main(int argc, char *argv[])
     (void)argv;
     day01_tests();
     day02_tests();
+    day03_tests();
 #else
     if (argc != 3) {
         fprintf(stderr, "Usage: %s DAY PART\n", argv[0]);

@@ -86,5 +86,4 @@ void day02_tests()
 
     assert(day02_ribbon("2x3x4") == 34);
     assert(day02_ribbon("1x1x10") == 14);
-
 }
