@@ -5,6 +5,7 @@
 
 int (*solutions[][2])(const char *) = {
     {day01_move_to_floor, day01_basement_position},
+    {day02_wrapping_paper, day02_ribbon},
 };
 
 int main(int argc, char *argv[])
