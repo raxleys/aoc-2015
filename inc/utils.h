@@ -14,7 +14,7 @@ char *read_whole_file(const char *path)
     long fsize = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    char *buf = malloc(fsize);
+    char *buf = malloc(fsize + 1);
     if (!buf) {
         perror("OOM");
         goto fail;
@@ -26,6 +26,7 @@ char *read_whole_file(const char *path)
     }
 
     fclose(file);
+    buf[fsize] = '\0';
     return buf;
 
 fail:
