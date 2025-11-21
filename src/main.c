@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include "utils.h"
 #include "day01.c"
-
-#define SIZE(X) (sizeof(X) / sizeof(X[0]))
+#include "day02.c"
 
 int (*solutions[][2])(const char *) = {
     {day01_move_to_floor, day01_basement_position},
@@ -10,6 +9,12 @@ int (*solutions[][2])(const char *) = {
 
 int main(int argc, char *argv[])
 {
+#ifdef TEST
+    (void)argc;
+    (void)argv;
+    day01_tests();
+    day02_tests();
+#else
     if (argc != 3) {
         fprintf(stderr, "Usage: %s DAY PART\n", argv[0]);
         return 1;
@@ -28,7 +33,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    char *input = read_whole_file("./inputs/day01.txt");
+    char fname[512];
+    snprintf(fname, sizeof(fname), "./inputs/day%02d.txt", day);
+
+    char *input = read_whole_file(fname);
     if (!input) {
         fprintf(stderr, "Failed to read input file.\n");
         return 1;
@@ -39,5 +47,7 @@ int main(int argc, char *argv[])
     printf("Solution: %d\n", ans);
 
     free(input);
+#endif
+
     return 0;
 }

@@ -2,6 +2,8 @@
 #define UTILS_H
 #include <stdlib.h>
 
+#define SIZE(X) (sizeof(X) / sizeof(X[0]))
+
 char *read_whole_file(const char *path)
 {
     FILE *file = fopen(path, "r");
