@@ -6,7 +6,7 @@ main:
 
 test:
 	mkdir -p build
-	$(CC) -o build/main src/main.c -Iinc -DTEST -Wall -Wextra -pedantic
+	$(CC) -o build/main src/main.c -Iinc -DTEST -Wall -Wextra -pedantic -ggdb
 
 clean:
 	rm -rf build

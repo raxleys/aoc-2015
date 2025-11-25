@@ -17,7 +17,6 @@
 ////////////////////////////////////////////////////////////////////////////
 #ifndef RAX_STRV_H
 #define RAX_STRV_H
-#endif // RAX_STRV_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,6 +26,16 @@
 #include <assert.h>
 #define RAX_ASSERT assert
 #endif // RAX_ASSERT
+
+#ifndef RAX_STRV_MALLOC
+#include <stdlib.h>
+#define RAX_STRV_MALLOC malloc
+#endif // RAX_STRV_MALLOC
+
+// Size of statically allocated buffer for creating temporary strings
+#ifndef RAX_STRV_TEMP_BUF_SIZE
+#define RAX_STRV_TEMP_BUF_SIZE 4096
+#endif // RAX_STRV_TEMP_BUF_SIZE
 
 typedef struct {
     size_t size;
@@ -61,6 +70,10 @@ rax_strv rax_strv_chop_left(rax_strv sv, size_t count);
 // Remove count characters from the right of a string view
 rax_strv rax_strv_chop_right(rax_strv sv, size_t count);
 
+// Return a slice of a string view
+// [start, end)
+rax_strv rax_strv_slice(rax_strv sv, size_t start, size_t end);
+
 // Trim all whitespace from the left of a string view
 rax_strv rax_strv_trim_left(rax_strv sv);
 
@@ -70,8 +83,28 @@ rax_strv rax_strv_trim_right(rax_strv sv);
 // Trim all whitespace from both sides of a string view
 rax_strv rax_strv_trim(rax_strv sv);
 
+// Calls strncmp on the underlying owned string slice
+int rax_strv_cmp_n(rax_strv first, rax_strv second, size_t n);
+
+// Behave like strcmp, but works on string view.
+int rax_strv_cmp(rax_strv first, rax_strv second);
+
+// Checks if the underlying string slices are equal
+bool rax_strv_equal(rax_strv first, rax_strv second);
+
 // Return true if a string view starts with another string view
 bool rax_strv_starts_with(rax_strv haystack, rax_strv needle);
+
+// Return true if the view points to an empty string
+bool rax_strv_is_empty(rax_strv sv);
+
+// Return a string allocated with RAX_STRV_MALLOC
+char *rax_strv_to_cstr_owned(rax_strv sv);
+
+// Return a string allocated in the internal static buffer
+// String is transient and will be overwritten on another call to
+// rax_strv_*_temp
+char *rax_strv_to_cstr_temp(rax_strv sv);
 
 // Create an iterator that "splits" a string into string view slices
 // over a delimiter
@@ -81,13 +114,16 @@ void rax_strv_split(rax_strv_it *it, const char *s, const char *delim);
 // TODO: DOS support
 void rax_strv_lines(rax_strv_it *it, const char *s);
 
-// Advance a strinv view iterator
+// Advance a string view iterator
 bool rax_strv_next(rax_strv_it *it);
 
+#endif // RAX_STRV_H
 #ifdef RAX_STRV_IMPLEMENTATION
 
 #include <string.h>
 #include <ctype.h>
+
+static char rax__strv_temp_buf[RAX_STRV_TEMP_BUF_SIZE];
 
 rax_strv rax_strv_from_range(const char *s, size_t start, size_t end)
 {
@@ -123,8 +159,16 @@ rax_strv rax_strv_chop_left(rax_strv sv, size_t count)
     return rax_strv_from_range(sv.str, count, sv.size);
 }
 
+rax_strv rax_strv_slice(rax_strv sv, size_t start, size_t end)
+{
+    RAX_ASSERT(end > start && start < sv.size && end <= sv.size);
+    return rax_strv_from_range(sv.str, start, end);
+}
+
 rax_strv rax_strv_trim_left(rax_strv sv)
 {
+    if (rax_strv_is_empty(sv)) return sv;
+
     size_t start = 0;
     for (; start < sv.size && isspace(sv.str[start]); start++);
     return rax_strv_chop_left(sv, start);
@@ -132,6 +176,8 @@ rax_strv rax_strv_trim_left(rax_strv sv)
 
 rax_strv rax_strv_trim_right(rax_strv sv)
 {
+    if (rax_strv_is_empty(sv)) return sv;
+
     size_t end = sv.size - 1;
     for (; end > 0 && isspace(sv.str[end]); end--);
 
@@ -147,12 +193,66 @@ rax_strv rax_strv_trim(rax_strv sv)
     return rax_strv_trim_left(rax_strv_trim_right(sv));
 }
 
+// TODO: Move?
+#define RAX_STRV_MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+
+int rax_strv_cmp_n(rax_strv first, rax_strv second, size_t n)
+{
+    return strncmp(first.str, second.str, n);
+}
+
+int rax_strv_cmp(rax_strv first, rax_strv second)
+{
+    // First compare first N bytes
+    size_t n = RAX_STRV_MIN(first.size, second.size);
+    size_t n_cmp = rax_strv_cmp_n(first, second, n);
+    if (n_cmp != 0 || (n_cmp == 0 && first.size == second.size))
+        return n_cmp;
+
+    // First n chars are equal, but lengths differ.
+    if (first.size > second.size)
+        return 1;
+    else
+        return -1;
+}
+
+bool rax_strv_equal(rax_strv first, rax_strv second)
+{
+    return rax_strv_cmp(first, second) == 0;
+}
+
 bool rax_strv_starts_with(rax_strv haystack, rax_strv needle)
 {
     if (needle.size > haystack.size)
         return false;
 
-    return strncmp(haystack.str, needle.str, needle.size) == 0;
+    return rax_strv_cmp_n(haystack, needle, needle.size) == 0;
+}
+
+bool rax_strv_is_empty(rax_strv sv)
+{
+    return sv.size == 0;
+}
+
+char *rax_strv_to_cstr_owned(rax_strv sv)
+{
+    // TODO: Just use strndup?
+    char *buf = RAX_STRV_MALLOC(sv.size + 1);
+    if (!buf) return NULL;
+
+    memcpy(buf, sv.str, sv.size);
+    buf[sv.size] = '\0';
+    return buf;
+}
+
+char *rax_strv_to_cstr_temp(rax_strv sv)
+{
+    // TODO: Or truncate?
+    RAX_ASSERT(sv.size < RAX_STRV_TEMP_BUF_SIZE);
+
+    memcpy(rax__strv_temp_buf, sv.str, sv.size);
+    rax__strv_temp_buf[sv.size] = '\0';
+    return rax__strv_temp_buf;
 }
 
 void rax_strv_split(rax_strv_it *it, const char *s, const char *delim)
@@ -212,27 +312,32 @@ bool rax_strv_next(rax_strv_it *it)
 }
 
 #endif // RAX_STRV_IMPLEMENTATION
+#undef RAX_STRV_IMPLEMENTATION
 
 #ifndef RAX_NO_STRIP_PREFIX
 
-#define strv             rax_strv
-#define strv_it          rax_strv_it
-
-#define strv_fmt         rax_strv_fmt
-#define strv_arg         rax_strv_arg
-
-#define strv_from_range  rax_strv_from_range
-#define strv_from        rax_strv_from
-#define strv_dup         rax_strv_dup
-#define strv_chop_left   rax_strv_chop_left
-#define strv_chop_right  rax_strv_chop_right
-#define strv_trim_left   rax_strv_trim_left
-#define strv_trim_right  rax_strv_trim_right
-#define strv_trim        rax_strv_trim
-
-#define strv_starts_with rax_strv_starts_with
-#define strv_split       rax_strv_split
-#define strv_lines       rax_strv_lines
-#define strv_next        rax_strv_next
+#define strv               rax_strv
+#define strv_it            rax_strv_it
+#define strv_fmt           rax_strv_fmt
+#define strv_arg           rax_strv_arg
+#define strv_from_range    rax_strv_from_range
+#define strv_from          rax_strv_from
+#define strv_dup           rax_strv_dup
+#define strv_chop_left     rax_strv_chop_left
+#define strv_chop_right    rax_strv_chop_right
+#define strv_slice         rax_strv_slice
+#define strv_trim_left     rax_strv_trim_left
+#define strv_trim_right    rax_strv_trim_right
+#define strv_trim          rax_strv_trim
+#define strv_cmp_n         rax_strv_cmp_n
+#define strv_cmp           rax_strv_cmp
+#define strv_equal         rax_strv_equal
+#define strv_starts_with   rax_strv_starts_with
+#define strv_is_empty      rax_strv_is_empty
+#define strv_to_cstr_owned rax_strv_to_cstr_owned
+#define strv_to_cstr_temp  rax_strv_to_cstr_temp
+#define strv_split         rax_strv_split
+#define strv_lines         rax_strv_lines
+#define strv_next          rax_strv_next
 
 #endif // RAX_NO_STRIP_PREFIX

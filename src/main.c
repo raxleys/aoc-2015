@@ -3,11 +3,17 @@
 #include "day01.c"
 #include "day02.c"
 #include "day03.c"
+/* #include "day04.c" */
+#include "day05.c"
+#include "day06.c"
 
 int (*solutions[][2])(const char *) = {
     {day01_move_to_floor, day01_basement_position},
     {day02_wrapping_paper, day02_ribbon},
     {day03_visit, day03_robo},
+    {NULL, NULL}, // Day 4
+    {day05_nice_strings, day05_nice_strings_2},
+    {day06_count_lights, day06_count_lights_2},
 };
 
 int main(int argc, char *argv[])
@@ -18,6 +24,9 @@ int main(int argc, char *argv[])
     day01_tests();
     day02_tests();
     day03_tests();
+    /* day04_tests(); */
+    day05_tests();
+    day06_tests();
 #else
     if (argc != 3) {
         fprintf(stderr, "Usage: %s DAY PART\n", argv[0]);

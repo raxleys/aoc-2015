@@ -201,6 +201,13 @@ RAX_HSET_LINKAGE bool RAX_HSET_next(RAX_HSET_IT_NAME *it)
 // Returns true if the key was found in the hash table, else false.
 RAX_HSET_LINKAGE bool RAX_HSET_get_index(RAX_HSET_ENTRY_NAME *entries, size_t capacity, const RAX_HSET_TYPE value, size_t *index)
 {
+    // If nothing has ever been inserted into the table, the capacity could be 0.
+    // mod 0 is undefined, and capacity - 1 could be an integer overflow
+    if (capacity == 0)
+        return false;
+    else if (capacity == 1)
+        return RAX_HSET_EQUAL(value, entries[0].value);
+
     uint64_t hash = RAX_HSET_hash(value);
     size_t i = (size_t)(hash & (uint64_t)(capacity - 1));
     while (entries[i].is_occupied) {
