@@ -90,7 +90,10 @@ int rax_strv_cmp_n(rax_strv first, rax_strv second, size_t n);
 int rax_strv_cmp(rax_strv first, rax_strv second);
 
 // Checks if the underlying string slices are equal
-bool rax_strv_equal(rax_strv first, rax_strv second);
+bool rax_strv_eq(rax_strv first, rax_strv second);
+
+// Compare a strv with a c-string
+bool rax_strv_eq_cstr(rax_strv sv, const char *s);
 
 // Return true if a string view starts with another string view
 bool rax_strv_starts_with(rax_strv haystack, rax_strv needle);
@@ -114,8 +117,21 @@ void rax_strv_split(rax_strv_it *it, const char *s, const char *delim);
 // TODO: DOS support
 void rax_strv_lines(rax_strv_it *it, const char *s);
 
+// Return a string view over the next word in a string view
+// A word is a string surrounded by spaces
+// This advances the past string view to point to the beginning of the
+// next word.
+rax_strv rax_strv_pop_word(rax_strv *sv);
+
+// Non destructive version of rax_strv_pop_word.
+// Creates a strv over the next word only. Does not alter the original view.
+rax_strv rax_strv_peek_word(rax_strv sv);
+
 // Advance a string view iterator
 bool rax_strv_next(rax_strv_it *it);
+
+// strtol wrapper
+bool rax_strv_parse_long(rax_strv word, long *n);
 
 #endif // RAX_STRV_H
 #ifdef RAX_STRV_IMPLEMENTATION
@@ -216,9 +232,14 @@ int rax_strv_cmp(rax_strv first, rax_strv second)
         return -1;
 }
 
-bool rax_strv_equal(rax_strv first, rax_strv second)
+bool rax_strv_eq(rax_strv first, rax_strv second)
 {
     return rax_strv_cmp(first, second) == 0;
+}
+
+bool rax_strv_eq_cstr(rax_strv sv, const char *s)
+{
+    return rax_strv_eq(sv, rax_strv_from(s));
 }
 
 bool rax_strv_starts_with(rax_strv haystack, rax_strv needle)
@@ -274,6 +295,28 @@ void rax_strv_lines(rax_strv_it *it, const char *s)
     rax_strv_split(it, s, "\n");
 }
 
+rax_strv rax_strv_pop_word(rax_strv *sv)
+{
+    size_t i = 0;
+    for (; i < sv->size && !isspace(sv->str[i]); i++);
+
+    rax_strv word = rax_strv_chop_right(*sv, sv->size - i);
+    rax_strv rest = rax_strv_trim_left(rax_strv_chop_left(*sv, i));
+    sv->str = rest.str;
+    sv->size = rest.size;
+
+    return word;
+}
+
+rax_strv rax_strv_peek_word(rax_strv sv)
+{
+    size_t i = 0;
+    for (; i < sv.size && !isspace(sv.str[i]); i++);
+
+    rax_strv word = rax_strv_chop_right(sv, sv.size - i);
+    return word;
+}
+
 bool rax_strv_next(rax_strv_it *it)
 {
     if (it->_done)
@@ -311,6 +354,29 @@ bool rax_strv_next(rax_strv_it *it)
     return true;
 }
 
+bool rax_strv_parse_long(rax_strv word, long *n)
+{
+    if (word.size <= 0)
+        return false;
+
+    // Should fit into a long, so just use a buffer of appropriate size
+    char buf[512];
+    if (word.size + 1 > sizeof(buf))
+        return false;
+
+    memcpy(buf, word.str, word.size);
+    buf[word.size] = '\0';
+
+    char *end = NULL;
+    long val;
+    val = strtol(buf, &end, 10);
+    if (*end != '\0')
+        return false;
+
+    *n = val;
+    return true;
+}
+
 #endif // RAX_STRV_IMPLEMENTATION
 #undef RAX_STRV_IMPLEMENTATION
 
@@ -331,13 +397,17 @@ bool rax_strv_next(rax_strv_it *it)
 #define strv_trim          rax_strv_trim
 #define strv_cmp_n         rax_strv_cmp_n
 #define strv_cmp           rax_strv_cmp
-#define strv_equal         rax_strv_equal
+#define strv_eq            rax_strv_eq
+#define strv_eq_cstr       rax_strv_eq_cstr
 #define strv_starts_with   rax_strv_starts_with
 #define strv_is_empty      rax_strv_is_empty
 #define strv_to_cstr_owned rax_strv_to_cstr_owned
 #define strv_to_cstr_temp  rax_strv_to_cstr_temp
 #define strv_split         rax_strv_split
+#define strv_pop_word      rax_strv_pop_word
+#define strv_peek_word     rax_strv_peek_word
 #define strv_lines         rax_strv_lines
 #define strv_next          rax_strv_next
+#define strv_parse_long    rax_strv_parse_long
 
 #endif // RAX_NO_STRIP_PREFIX

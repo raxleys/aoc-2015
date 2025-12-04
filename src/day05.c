@@ -63,9 +63,9 @@ bool is_string_nice_2(strv line)
             if (i > 2) {
                 strv prev_pair = strv_slice(line, i - 2, i);
                 strv prev_prev_pair = strv_slice(line, i - 3, i - 1);
-                if (!strv_equal(pair, prev_pair)) {
+                if (!strv_eq(pair, prev_pair)) {
                     has_double_pair = true;
-                } else if (strv_equal(pair, prev_prev_pair)) {
+                } else if (strv_eq(pair, prev_prev_pair)) {
                     has_double_pair = true;
                 }
             }
