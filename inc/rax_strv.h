@@ -114,6 +114,10 @@ void rax_strv_split(rax_strv_it *it, const char *s, const char *delim);
 // TODO: DOS support
 void rax_strv_lines(rax_strv_it *it, const char *s);
 
+// Return a string view over the next word in a string view
+// A word is a string surrounded by spaces
+strv rax_strv_next_word(strv sv);
+
 // Advance a string view iterator
 bool rax_strv_next(rax_strv_it *it);
 
@@ -272,6 +276,22 @@ void rax_strv_split(rax_strv_it *it, const char *s, const char *delim)
 void rax_strv_lines(rax_strv_it *it, const char *s)
 {
     rax_strv_split(it, s, "\n");
+}
+
+strv rax_strv_next_word(strv sv)
+{
+    if (sv.size == 0)
+        return (rax_strv) {};
+
+    rax_strv_it it = {};
+    // We need a strv version of split...
+    rax_strv_split(&it, sv.str, delim);
+
+    // If we have any whitespace at the beginning, trim the whitespace
+    // and return the next word as a string view
+    /* if (isspace(sv.str[0])) { */
+
+    /* } */
 }
 
 bool rax_strv_next(rax_strv_it *it)

@@ -25,7 +25,7 @@ struct day07_inst {
 
 bool day07_pop_integer(strv *instruction, uint16_t n)
 {
-    strv word == strv_next_word(*instruction);
+    strv word = strv_next_word(*instruction);
     long x = -1;
     if (!strv_parse_long(word, &x) || x < 0)
         return false;
