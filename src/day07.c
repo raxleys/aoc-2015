@@ -388,6 +388,87 @@ int day07_run_instructions(const char *input)
     return result;
 }
 
+int day07_run_instructions_2(const char *input)
+{
+    strv_it lines = {0};
+    strv_lines(&lines, input);
+
+    struct day07_inst *insts = NULL;
+    while (strv_next(&lines) && !strv_is_empty(lines.sv)) {
+#ifdef DEBUG
+        printf("line: \""strv_fmt"\"\n", strv_arg(lines.sv));
+#endif
+
+        struct day07_inst *inst = da_append_ptr(insts);
+        assert(day07_parse_instruction(lines.sv, inst));
+
+#ifdef DEBUG
+        day07_dump_parsed_instruction(lines.sv, inst);
+#endif
+    }
+
+    // Need to make a clone of insts before we destroy it during
+    // instruction execution
+    struct day07_inst *insts_clone = NULL;
+    da_reserve(insts_clone, da_size(insts) + 1);
+    // Space should be reserved, just memcpy
+    memcpy(insts_clone, insts, sizeof(*insts) * da_size(insts));
+    rax__da_get_head(insts_clone)->size = da_size(insts);
+
+    htsu signals = {0};
+    while (da_size(insts) > 0) {
+        // Iterate from the back to have fewer element shifts on removal
+        for (ptrdiff_t i = da_sizei(insts) - 1; i >= 0; i--) {
+            // Execute as many instructions as we can each time.
+            if (day07_execute_instruction(&signals, &insts[i])) {
+                // In this case, don't free the memory, because it is
+                // still pointed to by the (shallow) clond
+                // insts_clone.
+                /* day07_free_inst(&insts[i]); */
+                da_drop(insts, i);
+            }
+        }
+    }
+
+    uint16_t *a_ptr = htsu_get(&signals, "a");
+    assert(a_ptr && "a does not exist in the map!");
+    int a_value = (int)*a_ptr;
+
+    // reset signal map
+    htsu_clear(&signals);
+
+    // set value of a to signal of b
+    // Find the instruction that provides b's signal and change it
+    for (size_t i = 0; i < da_size(insts_clone); i++) {
+        if (strcmp(insts_clone[i].output, "b") == 0 && insts_clone[i].op == OP_NONE) {
+            // ??? -> b
+            insts_clone[i].input1.signal = (uint16_t)a_value;
+        }
+    }
+
+    // Good 'ol copy/paste
+    while (da_size(insts_clone) > 0) {
+        // Iterate from the back to have fewer element shifts on removal
+        for (ptrdiff_t i = da_sizei(insts_clone) - 1; i >= 0; i--) {
+            if (day07_execute_instruction(&signals, &insts_clone[i])) {
+                // Need to free memory here (╥﹏╥)
+                day07_free_inst(&insts_clone[i]);
+                da_drop(insts_clone, i);
+            }
+        }
+    }
+
+    a_ptr = htsu_get(&signals, "a");
+    assert(a_ptr && "a does not exist in the map!");
+    int result = (int)*a_ptr;
+
+    htsu_destroy(&signals);
+    da_free(insts);
+    da_free(insts_clone);
+
+    return result;
+}
+
 // This test function leaks memory.
 // I'm too lazy and tired of this problem to care.
 void day07_tests()

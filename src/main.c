@@ -15,7 +15,7 @@ int (*solutions[][2])(const char *) = {
     {NULL, NULL}, // Day 4
     {day05_nice_strings, day05_nice_strings_2},
     {day06_count_lights, day06_count_lights_2},
-    {day07_run_instructions, NULL},
+    {day07_run_instructions, day07_run_instructions_2},
 };
 
 int main(int argc, char *argv[])
