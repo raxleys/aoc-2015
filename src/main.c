@@ -8,6 +8,7 @@
 #include "day06.c"
 #include "day07.c"
 #include "day08.c"
+#include "day09.c"
 
 int (*solutions[][2])(const char *) = {
     {day01_move_to_floor, day01_basement_position},
@@ -18,6 +19,7 @@ int (*solutions[][2])(const char *) = {
     {day06_count_lights, day06_count_lights_2},
     {day07_run_instructions, day07_run_instructions_2},
     {day08_count_chars, day08_count_chars_2},
+    {day09_solution, NULL},
 };
 
 int main(int argc, char *argv[])
@@ -33,6 +35,7 @@ int main(int argc, char *argv[])
     day06_tests();
     day07_tests();
     day08_tests();
+    day09_tests();
 #else
     if (argc != 3) {
         fprintf(stderr, "Usage: %s DAY PART\n", argv[0]);
