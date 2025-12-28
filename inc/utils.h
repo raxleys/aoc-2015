@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #define SIZE(X) (sizeof(X) / sizeof(X[0]))
+#define BOOL_ARG(ARG) ((ARG) ? "true" : "false")
 
 char *read_whole_file(const char *path)
 {
