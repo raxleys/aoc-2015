@@ -101,6 +101,32 @@ int day11_next_password(const char *input)
     return 0;
 }
 
+int day11_next_password_2(const char *input)
+{
+    strv input_sv = strv_trim(strv_from(input));
+    char *next = malloc(input_sv.size + 1);
+    strv next_sv = strv_dup(input_sv);
+
+    int i = 0;
+    while (i < 2) {
+        day11_inc(next, next_sv);
+        next_sv = strv_from(next);
+
+        if (!day11_has_straight(next_sv))
+            continue;
+        if (!day11_no_iol(next_sv))
+            continue;
+        if (!day11_double_pair(next_sv))
+            continue;
+
+        i++;
+    }
+
+    printf("The next password should be: %s\n", next);
+    free(next);
+    return 0;
+}
+
 void day11_tests()
 {
     const char *input = "aaaaaaaa";

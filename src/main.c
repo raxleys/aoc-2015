@@ -23,7 +23,7 @@ int (*solutions[][2])(const char *) = {
     {day08_count_chars, day08_count_chars_2},
     {day09_solution, day09_solution_2},
     {day10_length, day10_length_2},
-    {day11_next_password, NULL},
+    {day11_next_password, day11_next_password_2},
 };
 
 int main(int argc, char *argv[])
